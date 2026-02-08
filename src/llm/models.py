@@ -3,6 +3,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_deepseek import ChatDeepSeek
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
+from langchain_moonshot import ChatMoonshot
 from langchain_openai import ChatOpenAI
 from enum import Enum
 from pydantic import BaseModel
@@ -15,6 +16,7 @@ class ModelProvider(str, Enum):
     DEEPSEEK = "DeepSeek"
     GEMINI = "Gemini"
     GROQ = "Groq"
+    KIMI = "Kimi"
     OPENAI = "OpenAI"
 
 
@@ -31,7 +33,7 @@ class LLMModel(BaseModel):
     
     def has_json_mode(self) -> bool:
         """Check if the model supports JSON mode"""
-        return not self.is_deepseek() and not self.is_gemini()
+        return not self.is_deepseek() and not self.is_gemini() and not self.is_kimi()
     
     def is_deepseek(self) -> bool:
         """Check if the model is a DeepSeek model"""
@@ -40,6 +42,10 @@ class LLMModel(BaseModel):
     def is_gemini(self) -> bool:
         """Check if the model is a Gemini model"""
         return self.model_name.startswith("gemini")
+    
+    def is_kimi(self) -> bool:
+        """Check if the model is a Kimi model"""
+        return self.model_name.startswith("kimi")
 
 
 # Define available models
@@ -83,6 +89,11 @@ AVAILABLE_MODELS = [
         display_name="[groq] llama-3.3 70b",
         model_name="llama-3.3-70b-versatile",
         provider=ModelProvider.GROQ
+    ),
+    LLMModel(
+        display_name="[kimi] kimi-k2.5",
+        model_name="kimi-k2.5",
+        provider=ModelProvider.KIMI
     ),
     LLMModel(
         display_name="[openai] gpt-4.5",
@@ -147,3 +158,9 @@ def get_model(model_name: str, model_provider: ModelProvider) -> ChatOpenAI | Ch
             print(f"API Key Error: Please make sure GOOGLE_API_KEY is set in your .env file.")
             raise ValueError("Google API key not found.  Please make sure GOOGLE_API_KEY is set in your .env file.")
         return ChatGoogleGenerativeAI(model=model_name, api_key=api_key)
+    elif model_provider == ModelProvider.KIMI:
+        api_key = os.getenv("MOONSHOT_API_KEY")
+        if not api_key:
+            print(f"API Key Error: Please make sure MOONSHOT_API_KEY is set in your .env file.")
+            raise ValueError("Moonshot API key not found.  Please make sure MOONSHOT_API_KEY is set in your .env file.")
+        return ChatMoonshot(model=model_name, api_key=api_key)

@@ -17,7 +17,7 @@ def call_llm(
     default_factory = None
 ) -> T:
     """
-    Makes an LLM call with retry logic, handling both Deepseek and non-Deepseek models.
+    Makes an LLM call with retry logic, handling both JSON mode and non-JSON mode models.
     
     Args:
         prompt: The prompt to send to the LLM
@@ -51,7 +51,10 @@ def call_llm(
             
             # For non-JSON support models, we need to extract and parse the JSON manually
             if model_info and not model_info.has_json_mode():
-                parsed_result = extract_json_from_deepseek_response(result.content)
+                if model_info.is_kimi():
+                    parsed_result = extract_json_from_kimi_response(result.content)
+                else:
+                    parsed_result = extract_json_from_deepseek_response(result.content)
                 if parsed_result:
                     return pydantic_model(**parsed_result)
             else:
@@ -104,4 +107,26 @@ def extract_json_from_deepseek_response(content: str) -> Optional[dict]:
                 return json.loads(json_text)
     except Exception as e:
         print(f"Error extracting JSON from Deepseek response: {e}")
+    return None
+
+def extract_json_from_kimi_response(content: str) -> Optional[dict]:
+    """Extracts JSON from Kimi's markdown-formatted response."""
+    try:
+        json_start = content.find("```json")
+        if json_start != -1:
+            json_text = content[json_start + 7:]  # Skip past ```json
+            json_end = json_text.find("```")
+            if json_end != -1:
+                json_text = json_text[:json_end].strip()
+                return json.loads(json_text)
+        # Try to find JSON without markdown formatting
+        json_start = content.find("{")
+        if json_start != -1:
+            json_text = content[json_start:]
+            json_end = json_text.rfind("}")
+            if json_end != -1:
+                json_text = json_text[:json_end + 1].strip()
+                return json.loads(json_text)
+    except Exception as e:
+        print(f"Error extracting JSON from Kimi response: {e}")
     return None
